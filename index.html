@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Cloud</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #fff;
+        }
+        canvas {
+            display: block;
+            image-rendering: pixelated;
+            width: 100vw;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx    = canvas.getContext('2d');
+
+    // fine‑tune “pixel size”
+    const scale  = 2.5;
+    const width  = Math.floor(window.innerWidth  / scale);
+    const height = Math.floor(window.innerHeight / scale);
+    canvas.width  = width;
+    canvas.height = height;
+
+    // prepare raw pixel buffer
+    const imageData = ctx.createImageData(width, height);
+    const data      = imageData.data;
+
+    function setPixel(x, y, r, g, b, a = 255) {
+        if (x < 0 || x >= width || y < 0 || y >= height) return;
+        const i = (y * width + x) * 4;
+        data[i    ] = r;
+        data[i + 1] = g;
+        data[i + 2] = b;
+        data[i + 3] = a;
+    }
+
+    // two color presets
+    const lightColor = { r: 182, g: 224, b: 242 };
+    const darkColor  = { r: 110, g: 193, b: 228 };
+
+    // generate circles at 5/8 height (lighter)
+    const lightCircles = [];
+    let cx = 0;
+    while (cx < width) {
+        const r  = 35 + Math.random() * 45;
+        const fx = 1.25, fy = 1.0;
+        const cy = 6 * height / 8 + (Math.random() - 0.5) * 40;
+        lightCircles.push({ cx, cy, r, fx, fy });
+        cx += r * 1.5;
+    }
+
+    // generate circles at 7/8 height (darker)
+    const darkCircles = [];
+    cx = 0;
+    while (cx < width) {
+        const r  = 35 + Math.random() * 45;
+        const fx = 1.25, fy = 1.0;
+        const cy = 7 * height / 8 + (Math.random() - 0.5) * 40;
+        darkCircles.push({ cx, cy, r, fx, fy });
+        cx += r * 1.5;
+    }
+
+    // rasterize both layers
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            // light first
+            for (const c of lightCircles) {
+                const dx = (x - c.cx) / (c.r * c.fx);
+                const dy = (y - c.cy) / (c.r * c.fy);
+                if (dx*dx + dy*dy <= 1) {
+                    setPixel(x, y, lightColor.r, lightColor.g, lightColor.b);
+                    break;
+                }
+            }
+            // then dark (overwrites)
+            for (const c of darkCircles) {
+                const dx = (x - c.cx) / (c.r * c.fx);
+                const dy = (y - c.cy) / (c.r * c.fy);
+                if (dx*dx + dy*dy <= 1) {
+                    setPixel(x, y, darkColor.r, darkColor.g, darkColor.b);
+                    break;
+                }
+            }
+        }
+    }
+
+    // fill “ground” beneath dark band
+    for (let x = 0; x < width; x++) {
+        let maxY = -1;
+        for (let y = 0; y < height; y++) {
+            const idx = (y * width + x) * 4;
+            if (
+                data[idx]   === darkColor.r &&
+                data[idx+1] === darkColor.g &&
+                data[idx+2] === darkColor.b
+            ) {
+                maxY = y;
+            }
+        }
+        if (maxY >= 0) {
+            for (let y = maxY + 1; y < height; y++) {
+                setPixel(x, y, darkColor.r, darkColor.g, darkColor.b);
+            }
+        }
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+</script>
+</body>
+</html>
